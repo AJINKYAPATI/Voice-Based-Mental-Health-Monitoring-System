@@ -91,11 +91,13 @@ weighted avg       0.97      0.97      0.97      3500
 
 ## 🖥️ Streamlit Web Application
 
+
 The project includes a **Streamlit app** with the following features:
 
 ✅ **Upload Audio File** (WAV)
 ✅ **Real-Time Emotion Prediction**
 ✅ **Probability Visualization** using:
+
 
 * Bar Charts
 * Radar Charts
@@ -110,6 +112,7 @@ The project includes a **Streamlit app** with the following features:
 
 
 ---
+
 
 ## 📁 Project Structure
 
