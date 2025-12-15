@@ -340,8 +340,10 @@ with st.sidebar:
         st.session_state.recorded_b64 = None
         st.experimental_rerun()
 
+
 # --- Main layout ---
 col1, col2 = st.columns([2, 1])
+
 
 with col1:
     st.markdown("""
@@ -463,7 +465,9 @@ with col2:
             with col_percent:
                 st.markdown(f"**{prob:.1%}**")
 
+
 # --- Emotion Suggestions Display ---
+
 if st.session_state.analysis_complete and st.session_state.results:
     emotion_key = st.session_state.results['predicted_emotion']
     suggestion = EMOTION_SUGGESTIONS.get(emotion_key, None)
