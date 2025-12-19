@@ -29,7 +29,7 @@ st.markdown("""
     .sidebar-content { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 1rem; border-radius: 10px; margin-bottom: 1rem; }
     .audio-player { background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; margin: 1rem 0; border: 1px solid rgba(255, 255, 255, 0.2); }
     .success-message { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 1rem; border-radius: 10px; margin: 1rem 0; text-align: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-    .emotion-emoji { font-size: 4rem; margin: 1rem 0; text-align: center; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
+    .emotion-emoji { font-size: 5rem; margin: 1rem 0; text-align: center; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
     .file-details { background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; margin: 1rem 0; border-left: 4px solid #667eea; }
     .recorder { text-align:center; padding:8px; }
     .rec-btn { padding:8px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:600; margin:6px; }
