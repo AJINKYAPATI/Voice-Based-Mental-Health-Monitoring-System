@@ -5,7 +5,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import librosa
 import librosa.display
-from joblib
+import joblib
+import pandas as pd
 model = joblib.load("model/model.pkl")
 import pandas as pd
 import matplotlib.pyplot as plt
