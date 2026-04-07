@@ -9,3 +9,4 @@ soundfile==0.12.1
 matplotlib==3.7.1
 tensorflow==2.12.0
 keras==2.12.0
+audio-recorder-streamlit
