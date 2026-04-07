@@ -12,7 +12,9 @@ from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from Utilities.utils import extract_features
+from tensorflow.keras.models import load_model
 
+model = load_model(model_path, compile=False)
 # Paths
 model_path = os.path.join("model", "best_lstm_model.keras")
 encoder_path = os.path.join("model", "encoder.joblib")
