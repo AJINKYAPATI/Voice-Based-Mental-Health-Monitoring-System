@@ -7,11 +7,30 @@ import librosa
 import librosa.display
 import joblib
 import pandas as pd
-model = joblib.load("model/model.pkl")
-import pandas as pd
+import os
+from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from Utilities.utils import extract_features
+
+# Paths
+model_path = os.path.join("model", "best_lstm_model.keras")
+encoder_path = os.path.join("model", "encoder.joblib")
+scaler_path = os.path.join("model", "scaler.joblib")
+
+# Load model safely
+@st.cache_resource
+def load_all():
+    model = load_model(model_path)
+    encoder = joblib.load(encoder_path)
+    scaler = joblib.load(scaler_path)
+    return model, encoder, scaler
+
+model, encoder, scaler = load_all()
+
+if model is None:
+    st.stop()
+
 
 # pip install audio-recorder-streamlit
 from audio_recorder_streamlit import audio_recorder
