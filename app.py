@@ -8,13 +8,11 @@ import librosa.display
 import joblib
 import pandas as pd
 import os
-from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from Utilities.utils import extract_features
 from tensorflow.keras.models import load_model
 
-model = load_model(model_path, compile=False)
 # Paths
 model_path = os.path.join("model", "best_lstm_model.keras")
 encoder_path = os.path.join("model", "encoder.joblib")
@@ -23,7 +21,7 @@ scaler_path = os.path.join("model", "scaler.joblib")
 # Load model safely
 @st.cache_resource
 def load_all():
-    model = load_model(model_path)
+    model = load_model(model_path, compile=False)
     encoder = joblib.load(encoder_path)
     scaler = joblib.load(scaler_path)
     return model, encoder, scaler
