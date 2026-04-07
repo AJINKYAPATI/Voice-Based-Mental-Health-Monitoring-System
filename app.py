@@ -5,8 +5,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import librosa
 import librosa.display
-from joblib import load
-from keras.models import load_model
+from joblib
+model = joblib.load("model/model.pkl")
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
