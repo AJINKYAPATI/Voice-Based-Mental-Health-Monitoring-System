@@ -1,36 +1,17 @@
+import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
 import io
-import base64
 import numpy as np
 import streamlit as st
-import streamlit.components.v1 as components
 import librosa
 import librosa.display
 import joblib
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from Utilities.utils import extract_features
-from tensorflow.keras.models import load_model
-
-# Paths
-model_path = os.path.join("model", "best_lstm_model.keras")
-encoder_path = os.path.join("model", "encoder.joblib")
-scaler_path = os.path.join("model", "scaler.joblib")
-
-# Load model safely
-@st.cache_resource
-def load_all():
-    model = load_model(model_path, compile=False)
-    encoder = joblib.load(encoder_path)
-    scaler = joblib.load(scaler_path)
-    return model, encoder, scaler
-
-model, encoder, scaler = load_all()
-
-if model is None:
-    st.stop()
-
+from tf_keras.models import load_model
 
 # pip install audio-recorder-streamlit
 from audio_recorder_streamlit import audio_recorder
@@ -64,58 +45,59 @@ for key, val in {
     'analysis_complete': False,
     'audio_file': None,
     'results': None,
-    'recorded_audio_bytes': None,   # raw WAV bytes from mic
+    'recorded_audio_bytes': None,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- Model loader ---
+# --- Single Model Loader (fixed & deduplicated) ---
 @st.cache_resource
-def load_models():
+def load_all():
     try:
-        MODEL_PATH = "model/best_lstm_model.keras"
-        SCALER_PATH = "model/scaler.joblib"
-        ENCODER_PATH = "model/encoder.joblib"
-        model = load_model(MODEL_PATH)
-        scaler = load(SCALER_PATH)
-        encoder = load(ENCODER_PATH)
+        model = load_model(
+            os.path.join("model", "best_lstm_model.keras"),
+            compile=False
+        )
+        scaler  = joblib.load(os.path.join("model", "scaler.joblib"))
+        encoder = joblib.load(os.path.join("model", "encoder.joblib"))
         return model, scaler, encoder
     except Exception as e:
-        return None, None, str(e)
+        st.error(f"❌ Model loading failed: {e}")
+        return None, None, None
 
-# --- Emotion suggestions & mapping (unchanged) ---
+# --- Emotion suggestions & mapping ---
 EMOTION_SUGGESTIONS = {
-    "happy": {"title": "You're sounding happy! 😊", "tips": ["Keep this positive energy going!", "Write down something you're grateful for today.", "Share your happiness with someone close.", "Listen to your favourite upbeat song."]},
-    "sad": {"title": "You sound sad. 💙", "tips": ["Take a deep breath and relax.", "Try a short calming exercise.", "Talk to a trusted friend or family member.", "Drink water and give yourself a small break."]},
-    "angry": {"title": "You sound angry. 😠", "tips": ["Pause for a moment before reacting.", "Try slow breathing: inhale 4s → exhale 4s.", "Go for a short walk to cool down.", "Write down what bothered you to clear your mind."]},
-    "fear": {"title": "You seem anxious. 😰", "tips": ["Focus on your surroundings and be present.", "Use the 5-4-3-2-1 grounding technique.", "Talk to someone you trust about your worry.", "Try stretching or light movement."]},
-    "surprise": {"title": "You sound surprised! 😮", "tips": ["Take a moment to understand the cause.", "Reflect on whether the surprise was positive or negative.", "Talk it out with someone if needed.", "Try re-listening to your recording for clarity."]},
-    "neutral": {"title": "Neutral tone detected. 😐", "tips": ["Add more expression if you're trying to convey emotion.", "Relax your throat and try speaking again.", "Record again with intentional tone shifts.", "Smile lightly while speaking to change tone."]},
-    "disgust": {"title": "Disgust detected. 🤢", "tips": ["Take a moment to breathe.", "Try reframing the situation more calmly.", "Step away briefly to reset your mindset.", "Drink some water and relax your facial muscles."]}
+    "happy":   {"title": "You're sounding happy! 😊",  "tips": ["Keep this positive energy going!", "Write down something you're grateful for today.", "Share your happiness with someone close.", "Listen to your favourite upbeat song."]},
+    "sad":     {"title": "You sound sad. 💙",           "tips": ["Take a deep breath and relax.", "Try a short calming exercise.", "Talk to a trusted friend or family member.", "Drink water and give yourself a small break."]},
+    "angry":   {"title": "You sound angry. 😠",         "tips": ["Pause for a moment before reacting.", "Try slow breathing: inhale 4s → exhale 4s.", "Go for a short walk to cool down.", "Write down what bothered you to clear your mind."]},
+    "fear":    {"title": "You seem anxious. 😰",        "tips": ["Focus on your surroundings and be present.", "Use the 5-4-3-2-1 grounding technique.", "Talk to someone you trust about your worry.", "Try stretching or light movement."]},
+    "surprise":{"title": "You sound surprised! 😮",    "tips": ["Take a moment to understand the cause.", "Reflect on whether the surprise was positive or negative.", "Talk it out with someone if needed.", "Try re-listening to your recording for clarity."]},
+    "neutral": {"title": "Neutral tone detected. 😐",  "tips": ["Add more expression if you're trying to convey emotion.", "Relax your throat and try speaking again.", "Record again with intentional tone shifts.", "Smile lightly while speaking to change tone."]},
+    "disgust": {"title": "Disgust detected. 🤢",        "tips": ["Take a moment to breathe.", "Try reframing the situation more calmly.", "Step away briefly to reset your mindset.", "Drink some water and relax your facial muscles."]}
 }
 emotion_mapping = {
-    'angry': {'emoji': '😠', 'color': '#FF4444'},
+    'angry':   {'emoji': '😠', 'color': '#FF4444'},
     'disgust': {'emoji': '🤢', 'color': '#4CAF50'},
-    'fear': {'emoji': '😨', 'color': '#FF9800'},
-    'happy': {'emoji': '😊', 'color': '#4CAF50'},
+    'fear':    {'emoji': '😨', 'color': '#FF9800'},
+    'happy':   {'emoji': '😊', 'color': '#4CAF50'},
     'neutral': {'emoji': '😐', 'color': '#9E9E9E'},
-    'sad': {'emoji': '😢', 'color': '#2196F3'},
-    'surprise': {'emoji': '😲', 'color': '#9C27B0'}
+    'sad':     {'emoji': '😢', 'color': '#2196F3'},
+    'surprise':{'emoji': '😲', 'color': '#9C27B0'}
 }
 
-# --- Visualization helpers (kept intact) ---
+# --- Visualization helpers ---
 def create_bar_chart(emotions, probabilities):
     fig, ax = plt.subplots(figsize=(10, 6))
     sorted_data = sorted(zip(emotions, probabilities), key=lambda x: x[1])
     sorted_emotions, sorted_probs = zip(*sorted_data)
-    colors = [emotion_mapping.get(emotion, {'color': '#666666'})['color'] for emotion in sorted_emotions]
+    colors = [emotion_mapping.get(e, {'color': '#666666'})['color'] for e in sorted_emotions]
     bars = ax.barh(range(len(sorted_emotions)), sorted_probs, color=colors, alpha=0.7)
     ax.set_yticks(range(len(sorted_emotions)))
     ax.set_yticklabels([f"{emotion_mapping.get(e, {'emoji': '❓'})['emoji']} {e.capitalize()}" for e in sorted_emotions])
     ax.set_xlabel('Confidence Score')
     ax.set_title('Emotion Probability Distribution', fontsize=16, fontweight='bold')
     ax.set_xlim(0, 1)
-    for i, (bar, prob) in enumerate(zip(bars, sorted_probs)):
+    for bar, prob in zip(bars, sorted_probs):
         ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height()/2, f'{prob:.1%}', va='center', fontweight='bold')
     plt.tight_layout()
     return fig
@@ -123,10 +105,10 @@ def create_bar_chart(emotions, probabilities):
 def create_radar_chart(emotions, probabilities):
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
     angles = np.linspace(0, 2 * np.pi, len(emotions), endpoint=False).tolist()
-    probabilities = list(probabilities) + [probabilities[0]]
+    probs = list(probabilities) + [probabilities[0]]
     angles += angles[:1]
-    ax.plot(angles, probabilities, 'o-', linewidth=2, color='#667eea')
-    ax.fill(angles, probabilities, color='#667eea', alpha=0.25)
+    ax.plot(angles, probs, 'o-', linewidth=2, color='#667eea')
+    ax.fill(angles, probs, color='#667eea', alpha=0.25)
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels([f"{emotion_mapping.get(e, {'emoji': '❓'})['emoji']} {e.capitalize()}" for e in emotions])
     ax.set_ylim(0, 1)
@@ -138,34 +120,34 @@ def create_donut_chart(emotions, probabilities):
     fig, ax = plt.subplots(figsize=(8, 8))
     top_indices = np.argsort(probabilities)[-5:][::-1]
     top_emotions = [emotions[i] for i in top_indices]
-    top_probs = [probabilities[i] for i in top_indices]
-    colors = [emotion_mapping.get(emotion, {'color': '#666666'})['color'] for emotion in top_emotions]
-    wedges, texts, autotexts = ax.pie(top_probs, labels=[f"{emotion_mapping.get(e, {'emoji': '❓'})['emoji']} {e.capitalize()}" for e in top_emotions], colors=colors, autopct='%1.1f%%', startangle=90, pctdistance=0.85)
-    centre_circle = Circle((0, 0), 0.70, fc='white')
-    ax.add_artist(centre_circle)
+    top_probs    = [probabilities[i] for i in top_indices]
+    colors = [emotion_mapping.get(e, {'color': '#666666'})['color'] for e in top_emotions]
+    ax.pie(top_probs,
+           labels=[f"{emotion_mapping.get(e, {'emoji': '❓'})['emoji']} {e.capitalize()}" for e in top_emotions],
+           colors=colors, autopct='%1.1f%%', startangle=90, pctdistance=0.85)
+    ax.add_artist(Circle((0, 0), 0.70, fc='white'))
     ax.set_title('Top 5 Emotions Distribution', fontsize=16, fontweight='bold')
     return fig
 
-def plot_waveform(y, sr, title="Waveform"):
+def plot_waveform(y, sr):
     fig, ax = plt.subplots(figsize=(10, 3))
     librosa.display.waveshow(y, sr=sr, ax=ax)
-    ax.set_title(title)
+    ax.set_title("Waveform")
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Amplitude')
     plt.tight_layout()
     return fig
 
-def plot_spectrogram(y, sr, title="Mel Spectrogram (dB)"):
-    S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000)
-    S_dB = librosa.power_to_db(S, ref=np.max)
+def plot_spectrogram(y, sr):
+    S_dB = librosa.power_to_db(librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000), ref=np.max)
     fig, ax = plt.subplots(figsize=(10, 4))
     img = librosa.display.specshow(S_dB, x_axis='time', y_axis='mel', sr=sr, fmax=8000, ax=ax)
-    ax.set_title(title)
+    ax.set_title("Mel Spectrogram (dB)")
     fig.colorbar(img, ax=ax, format='%+2.0f dB')
     plt.tight_layout()
     return fig
 
-# --- Helper: analyze BytesIO audio ---
+# --- Analyze audio ---
 def analyze_audio_bytesio(bio: io.BytesIO, model, scaler, encoder):
     try:
         bio.seek(0)
@@ -173,7 +155,7 @@ def analyze_audio_bytesio(bio: io.BytesIO, model, scaler, encoder):
         if y.ndim > 1:
             y = librosa.to_mono(y)
     except Exception as e:
-        st.error(f"Failed to load audio for analysis: {e}")
+        st.error(f"Failed to load audio: {e}")
         return
 
     with st.spinner("🔍 Analyzing audio features..."):
@@ -187,27 +169,27 @@ def analyze_audio_bytesio(bio: io.BytesIO, model, scaler, encoder):
             features = np.expand_dims(features, axis=2)
             prediction = model.predict(features)
             predicted_class = np.argmax(prediction)
+
             if hasattr(encoder, 'categories_'):
                 predicted_label = encoder.categories_[0][predicted_class]
+                all_emotions    = encoder.categories_[0]
             elif hasattr(encoder, 'classes_'):
                 predicted_label = encoder.classes_[predicted_class]
+                all_emotions    = encoder.classes_
             else:
                 predicted_label = str(predicted_class)
-            progress_bar.progress(100)
+                all_emotions    = [str(i) for i in range(len(prediction[0]))]
 
+            progress_bar.progress(100)
             st.session_state.results = {
                 'predicted_emotion': predicted_label,
                 'probabilities': prediction[0],
-                'emotions': encoder.categories_[0] if hasattr(encoder, 'categories_') else encoder.classes_
+                'emotions': all_emotions
             }
             st.session_state.analysis_complete = True
-            st.markdown("""
-            <div class="success-message">
-                  Analysis Complete! Results are ready.
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="success-message">✅ Analysis Complete! Results are ready.</div>', unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"❌ Error during analysis: {str(e)}")
+            st.error(f"❌ Error during analysis: {e}")
             progress_bar.empty()
 
 # --- Header ---
@@ -219,12 +201,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- Load models ---
-model, scaler, encoder = load_models()
+# --- Load models (single call) ---
+model, scaler, encoder = load_all()
 if model is None:
-    st.error("⚠️ Models could not be loaded. Please check your model paths.")
-    if isinstance(encoder, str):
-        st.error(f"Loader error: {encoder}")
+    st.error("⚠️ Models could not be loaded. Please check your model files in the /model folder.")
     st.stop()
 
 # --- Sidebar ---
@@ -244,15 +224,15 @@ with st.sidebar:
     st.markdown("""
     <div class="sidebar-content">
         <h3>📋 Supported Formats</h3>
-        <p>• WAV/MP3/OGG/M4A/FLAC (recommended)</p>
-        <p>• Duration: 1-120 seconds</p>
-        <p>• Sample rate: 16kHz+ recommended</p>
+        <p>• WAV / MP3 / OGG / M4A / FLAC</p>
+        <p>• Duration: 1–120 seconds</p>
+        <p>• Sample rate: 16 kHz+ recommended</p>
     </div>
     """, unsafe_allow_html=True)
     if st.button("🔄 Reset Analysis", help="Clear all results and start over"):
-        st.session_state.analysis_complete = False
-        st.session_state.audio_file = None
-        st.session_state.results = None
+        st.session_state.analysis_complete   = False
+        st.session_state.audio_file          = None
+        st.session_state.results             = None
         st.session_state.recorded_audio_bytes = None
         st.rerun()
 
@@ -281,7 +261,6 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── FIXED: audio_recorder returns raw WAV bytes directly to Python ──
     with st.expander("Open Microphone Recorder", expanded=False):
         recorded_bytes = audio_recorder(
             text="Click to record",
@@ -289,29 +268,28 @@ with col1:
             neutral_color="#667eea",
             icon_name="microphone",
             icon_size="2x",
-            pause_threshold=3.0,   # auto-stops after 3 s of silence
+            pause_threshold=3.0,
             sample_rate=16_000,
         )
         if recorded_bytes:
-            # Only store if it's a new, non-trivial recording (>1 KB)
             if len(recorded_bytes) > 1024:
                 st.session_state.recorded_audio_bytes = recorded_bytes
                 st.success("✅ Recording captured! Scroll down and click **Analyze Emotion**.")
             else:
                 st.info("Recording seems too short — please speak for at least 1 second.")
 
-    # ── Determine active audio source (upload takes priority) ──
+    # Determine active audio source
     active_audio = None
-    audio_name = None
-    buf = None
+    audio_name   = None
+    buf          = None
 
     if uploaded_file is not None:
         active_audio = uploaded_file
-        audio_name = getattr(uploaded_file, "name", "uploaded_audio")
+        audio_name   = getattr(uploaded_file, "name", "uploaded_audio")
     elif st.session_state.recorded_audio_bytes is not None:
-        active_audio = io.BytesIO(st.session_state.recorded_audio_bytes)
+        active_audio      = io.BytesIO(st.session_state.recorded_audio_bytes)
         active_audio.name = "recording.wav"
-        audio_name = "recording.wav"
+        audio_name        = "recording.wav"
 
     if active_audio is not None:
         st.markdown(
@@ -324,11 +302,9 @@ with col1:
             audio_bytes = active_audio.read()
             st.audio(audio_bytes)
 
-            # Prepare buffer for visualization & analysis
-            buf = io.BytesIO(audio_bytes)
+            buf      = io.BytesIO(audio_bytes)
             buf.name = audio_name
-            y, sr = librosa.load(io.BytesIO(audio_bytes), sr=None)
-
+            y, sr    = librosa.load(io.BytesIO(audio_bytes), sr=None)
             if y.ndim > 1:
                 y = librosa.to_mono(y)
 
@@ -345,7 +321,6 @@ with col1:
             st.warning(f"Could not load audio for playback/visualization: {e}")
             buf = None
 
-        # Analyze button
         if st.button("🧠 Analyze Emotion", key="analyze"):
             if buf is None:
                 st.error("No audio buffer available for analysis.")
@@ -354,117 +329,92 @@ with col1:
 
 with col2:
     if st.session_state.analysis_complete and st.session_state.results:
-        results = st.session_state.results
+        results           = st.session_state.results
         predicted_emotion = results['predicted_emotion']
-        probabilities = results['probabilities']
-        emotions = results['emotions']
-        emotion_info = emotion_mapping.get(predicted_emotion, {'emoji': '❓', 'color': '#666666'})
-        result_html = f"""
+        probabilities     = results['probabilities']
+        emotions          = results['emotions']
+        emotion_info      = emotion_mapping.get(predicted_emotion, {'emoji': '❓', 'color': '#666666'})
+
+        st.markdown(f"""
         <div class="result-card">
             <div class="emotion-emoji">{emotion_info['emoji']}</div>
             <h2>Predicted Emotion</h2>
             <h1 style="font-size: 2.5rem; margin: 1rem 0;">{predicted_emotion.upper()}</h1>
             <p style="font-size: 1.2rem;">Confidence: {probabilities[np.argmax(probabilities)]:.1%}</p>
         </div>
-        """
-        st.markdown(result_html, unsafe_allow_html=True)
-        st.markdown("""
-        <div class="emotion-card">
-            <h3>🎯 Confidence Scores</h3>
-        </div>
         """, unsafe_allow_html=True)
-        for emotion, prob in zip(emotions, probabilities):
-            emotion_info = emotion_mapping.get(emotion, {'emoji': '❓', 'color': '#666666'})
-            col_emoji, col_name, col_bar, col_percent = st.columns([1, 2, 4, 1])
-            with col_emoji:
-                st.markdown(f"<div style='font-size: 2rem; text-align: center;'>{emotion_info['emoji']}</div>", unsafe_allow_html=True)
-            with col_name:
-                st.markdown(f"**{emotion.capitalize()}**")
-            with col_bar:
-                st.progress(float(prob))
-            with col_percent:
-                st.markdown(f"**{prob:.1%}**")
 
-# --- Emotion Suggestions Display ---
+        st.markdown('<div class="emotion-card"><h3>🎯 Confidence Scores</h3></div>', unsafe_allow_html=True)
+        for emotion, prob in zip(emotions, probabilities):
+            ei = emotion_mapping.get(emotion, {'emoji': '❓', 'color': '#666666'})
+            c1, c2, c3, c4 = st.columns([1, 2, 4, 1])
+            with c1: st.markdown(f"<div style='font-size:2rem;text-align:center'>{ei['emoji']}</div>", unsafe_allow_html=True)
+            with c2: st.markdown(f"**{emotion.capitalize()}**")
+            with c3: st.progress(float(prob))
+            with c4: st.markdown(f"**{prob:.1%}**")
+
+# --- Emotion Suggestions ---
 if st.session_state.analysis_complete and st.session_state.results:
     emotion_key = st.session_state.results['predicted_emotion']
-    suggestion = EMOTION_SUGGESTIONS.get(emotion_key, None)
-
+    suggestion  = EMOTION_SUGGESTIONS.get(emotion_key)
     if suggestion:
         color = emotion_mapping.get(emotion_key, {'color': '#667eea'})['color']
         emoji = emotion_mapping.get(emotion_key, {'emoji': '💡'})['emoji']
-
-        parts = []
-        parts.append(f"<div class='suggestion-card' style='border-radius:12px; padding:20px; margin:12px 0; background: linear-gradient(135deg, {color}22 0%, #ffffff 100%); box-shadow: 0 4px 12px rgba(0,0,0,0.08);'>")
-        parts.append("<div style='display:flex; align-items:center; gap:12px;'>")
-        parts.append(f"<div style='font-size:3rem;'>{emoji}</div>")
-        parts.append("<div>")
-        parts.append(f"<h3 style='margin:0 0 6px 0;'>{suggestion['title']}</h3>")
-        parts.append("<p style='margin:0; color:#333;'>Here are some quick suggestions you can try:</p>")
-        parts.append("</div></div>")
-        parts.append("<div style='margin-top:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px;'>")
+        parts = [
+            f"<div class='suggestion-card' style='border-radius:12px;padding:20px;margin:12px 0;background:linear-gradient(135deg,{color}22 0%,#ffffff 100%);box-shadow:0 4px 12px rgba(0,0,0,0.08);'>",
+            "<div style='display:flex;align-items:center;gap:12px;'>",
+            f"<div style='font-size:3rem;'>{emoji}</div><div>",
+            f"<h3 style='margin:0 0 6px 0;'>{suggestion['title']}</h3>",
+            "<p style='margin:0;color:#333;'>Here are some quick suggestions you can try:</p>",
+            "</div></div>",
+            "<div style='margin-top:15px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;'>",
+        ]
         for tip in suggestion['tips']:
-            safe_tip = str(tip).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            parts.append(
-                "<div style='background:#ffffff; border-radius:10px; padding:10px 14px; margin:10px 0; box-shadow:0 3px 8px rgba(0,0,0,0.06);'>"
-                f"<div style='font-weight:600; color:#111;'>🔸 {safe_tip}</div>"
-                "</div>"
-            )
-        parts.append("</div>")
-        parts.append("</div>")
+            safe = tip.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+            parts.append(f"<div style='background:#fff;border-radius:10px;padding:10px 14px;margin:10px 0;box-shadow:0 3px 8px rgba(0,0,0,0.06);'><div style='font-weight:600;color:#111;'>🔸 {safe}</div></div>")
+        parts += ["</div>", "</div>"]
+        st.markdown(''.join(parts), unsafe_allow_html=True)
 
-        card_html = ''.join(parts)
-        st.markdown(card_html, unsafe_allow_html=True)
-
-# Results visualization (full width)
+# --- Detailed Analysis ---
 if st.session_state.analysis_complete and st.session_state.results:
     st.markdown("---")
     st.markdown("## 📊 Detailed Analysis")
-    results = st.session_state.results
-    emotions = results['emotions']
-    probabilities = results['probabilities']
+    emotions      = st.session_state.results['emotions']
+    probabilities = st.session_state.results['probabilities']
+
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Probability Distribution", "🎯 Confidence Radar", "🍩 Top Emotions", "📈 Emotion Ranking"])
     with tab1:
         st.markdown("### Horizontal Bar Chart")
-        fig = create_bar_chart(emotions, probabilities)
-        st.pyplot(fig)
-        plt.close(fig)
+        fig = create_bar_chart(emotions, probabilities); st.pyplot(fig); plt.close(fig)
     with tab2:
         st.markdown("### Radar Chart")
-        fig = create_radar_chart(emotions, probabilities)
-        st.pyplot(fig)
-        plt.close(fig)
+        fig = create_radar_chart(emotions, probabilities); st.pyplot(fig); plt.close(fig)
     with tab3:
         st.markdown("### Donut Chart - Top 5 Emotions")
-        fig = create_donut_chart(emotions, probabilities)
-        st.pyplot(fig)
-        plt.close(fig)
+        fig = create_donut_chart(emotions, probabilities); st.pyplot(fig); plt.close(fig)
     with tab4:
         st.markdown("### Emotion Ranking Table")
-        df_ranking = pd.DataFrame({
-            'Rank': range(1, len(emotions) + 1),
-            'Emotion': emotions,
+        df = pd.DataFrame({
+            'Rank':       range(1, len(emotions)+1),
+            'Emotion':    emotions,
             'Confidence': probabilities,
-            'Emoji': [emotion_mapping.get(e, {'emoji': '❓'})['emoji'] for e in emotions]
+            'Emoji':      [emotion_mapping.get(e, {'emoji':'❓'})['emoji'] for e in emotions]
         }).sort_values('Confidence', ascending=False).reset_index(drop=True)
-        df_ranking['Rank'] = range(1, len(df_ranking) + 1)
-        df_ranking['Confidence'] = df_ranking['Confidence'].apply(lambda x: f"{x:.1%}")
-        st.dataframe(df_ranking, use_container_width=True)
-        st.markdown("### 📈 Statistical Summary")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Highest Confidence", f"{np.max(probabilities):.1%}")
-        with col2:
-            st.metric("Lowest Confidence", f"{np.min(probabilities):.1%}")
-        with col3:
-            st.metric("Average Confidence", f"{np.mean(probabilities):.1%}")
-        with col4:
-            st.metric("Std. Deviation", f"{np.std(probabilities):.1%}")
+        df['Rank']       = range(1, len(df)+1)
+        df['Confidence'] = df['Confidence'].apply(lambda x: f"{x:.1%}")
+        st.dataframe(df, use_container_width=True)
 
-# Footer
+        st.markdown("### 📈 Statistical Summary")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Highest Confidence", f"{np.max(probabilities):.1%}")
+        c2.metric("Lowest Confidence",  f"{np.min(probabilities):.1%}")
+        c3.metric("Average Confidence", f"{np.mean(probabilities):.1%}")
+        c4.metric("Std. Deviation",     f"{np.std(probabilities):.1%}")
+
+# --- Footer ---
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #666; padding: 2rem;">
+<div style="text-align:center;color:#666;padding:2rem;">
     <p>🧠 Powered by Deep Learning • 🎤 Voice-Based Mental Health Monitoring System • 🚀 Built with Streamlit</p>
     <p>Upload clear audio recordings for best results</p>
 </div>
