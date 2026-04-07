@@ -1,1 +1,3 @@
-model = joblib.load("model.pkl")
+import joblib
+
+joblib.dump(model, "model.pkl")
