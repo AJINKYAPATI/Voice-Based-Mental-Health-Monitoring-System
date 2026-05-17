@@ -192,51 +192,6 @@ The model classifies speech into **7 emotion categories**:
 
 ---
 
-## ⚙️ Installation
-
-### Prerequisites
-
-- Python 3.8 or higher
-- pip package manager
-- Git
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/YOUR_USERNAME/voice-mental-health-monitor.git
-cd voice-mental-health-monitor
-```
-
-### 2. Create a Virtual Environment
-
-```bash
-python -m venv venv
-
-# Activate on Windows
-venv\Scripts\activate
-
-# Activate on macOS/Linux
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Run the Application
-
-```bash
-streamlit run app.py
-```
-
-The app will open automatically at `http://localhost:8501`
-
----
-
-## 🚀 Usage
-
 ### Option A: Upload an Audio File
 
 1. Click **"Browse files"** or drag and drop an audio file
