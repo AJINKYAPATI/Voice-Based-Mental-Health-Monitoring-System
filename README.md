@@ -290,30 +290,7 @@ This project uses the **[TESS (Toronto Emotional Speech Set)](https://tspace.lib
 
 ---
 
-## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/AmazingFeature`
-3. **Commit** your changes: `git commit -m 'Add AmazingFeature'`
-4. **Push** to the branch: `git push origin feature/AmazingFeature`
-5. **Open** a Pull Request
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct.
-
----
-
-### 💜 Built with passion for mental health awareness
-
-*If this project helped you, please consider giving it a ⭐ — it means a lot!*
-
-<br/>
-
-[![GitHub stars](https://img.shields.io/github/stars/YOUR_USERNAME/voice-mental-health-monitor?style=social)](https://github.com/YOUR_USERNAME/voice-mental-health-monitor)
-[![GitHub forks](https://img.shields.io/github/forks/YOUR_USERNAME/voice-mental-health-monitor?style=social)](https://github.com/YOUR_USERNAME/voice-mental-health-monitor)
-
-<br/>
 
 **🧠 Powered by Deep Learning &nbsp;•&nbsp; 🎤 Speech Emotion Recognition &nbsp;•&nbsp; 🚀 Built with Streamlit**
 
